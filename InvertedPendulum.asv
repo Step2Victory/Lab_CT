@@ -281,7 +281,7 @@ classdef InvertedPendulum
             tiledlayout(4,1)
             
             ax1 = nexttile;
-            plot(ax1,t, z(:,1), '-', t_lin, z_lin(:,1))
+            plot(ax1, t, z(:,1), '-', t_lin, z_lin(:,1))
             ylabel(ax1, 'x(t)', 'Interpreter','latex')
             
             ax2 = nexttile;
@@ -301,19 +301,19 @@ classdef InvertedPendulum
 
             ax5 = nexttile;
             plot(ax5, t, z(:,5), '-', t_lin, z_lin(:,5))
-            ylabel(ax5, 'Observed x(t)', 'Interpreter','latex')
+            ylabel(ax5, 'Наблюдаемый x(t)', 'Interpreter','latex')
             
             ax6 = nexttile;
             plot(ax6, t, z(:,6), '-', t_lin, z_lin(:,6))
-            ylabel(ax6,'Observed $\varphi(t)$', 'Interpreter','latex')
+            ylabel(ax6,'Наблюдаемый $\varphi(t)$', 'Interpreter','latex')
             
             ax7 = nexttile;
             plot(ax7, t, z(:,7), '-', t_lin, z_lin(:,7))
-            ylabel(ax7,'Observed $\dot{x(t)}$', 'Interpreter','latex')
+            ylabel(ax7,'Наблюдаемый $\dot{x(t)}$', 'Interpreter','latex')
             
             ax8 = nexttile;
             plot(ax8, t, z(:,8), '-', t_lin, z_lin(:,8))
-            ylabel(ax8,'Observed $\dot{\varphi(t)}$', 'Interpreter','latex')
+            ylabel(ax8,'Наблюдаемый $\dot{\varphi(t)}$', 'Interpreter','latex')
 
             figure;
             tiledlayout(2,1)
@@ -325,12 +325,12 @@ classdef InvertedPendulum
             plot(ax9, t_lin, h_lin)
             ylabel(ax9,'Невязка для линейной системы', 'Interpreter','latex')
             ax10 = nexttile;
-            h = zeros(1, length(t));
-            for i = 1 : length(t)
-                h(i) = norm(z(i,1:4) - obj.observer_C * (z(i, 5:8))');
+            h_lin = zeros(1, length(t_lin));
+            for i = 1 : length(t_lin)
+                h_lin(i) = norm(z_lin(i,1:4) - obj.observer_C * (z_lin(i, 5:8))');
             end
-            plot(ax10, t, h)
-            ylabel(ax10,'Невязка для нелинейной системы', 'Interpreter','latex')
+            plot(ax9, t_lin, h_lin)
+            ylabel(ax9,'Невязка для нелинейной системы', 'Interpreter','latex')
 
 
         end

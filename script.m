@@ -13,8 +13,6 @@ B_p = 0.002;
 
 pend = InvertedPendulum(m, M, J, l, K_f, K_s, B_c,  B_p);
 pend.info();
-pend = pend.set_trange([0 5]);
-pend.task11c([-1 + 2i, -1 - 2i]);
-
-
-
+pend = pend.set_trange([0 10]);
+theta = pend.stabilize([-1, -1, -1, -1]);
+pend.task12a([-1, -2], @(t,x) (theta * x));
