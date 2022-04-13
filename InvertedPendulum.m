@@ -14,9 +14,11 @@ classdef InvertedPendulum
         B
         C
         u
+        u_observer
         L
         observer_C
         x0
+        y0
         t_range
      
     end
@@ -37,6 +39,7 @@ classdef InvertedPendulum
             obj.B_p = B_p;
            
             obj.x0 = [0; -0.6; 0; 0];
+            obj.y0 = obj.x0;
             obj.t_range = [0 2];
 
             A_0 = [m + M, -m * l;
@@ -51,6 +54,7 @@ classdef InvertedPendulum
             obj.C = obj.control_matrix(obj.A, obj.B);
 
             obj.u = 0;
+            obj.u_observer = 0;
 
             obj.L = 0;
             obj.observer_C = [1, 0, 0, 0; 0, 1, 0, 0]; 
@@ -101,7 +105,11 @@ classdef InvertedPendulum
         function obj = set_x0(obj, new_x0)
             obj.x0 = new_x0;
         end
-
+        
+        function obj = set_y0(obj, new_y0)
+            obj.x0 = new_y0;
+        end
+        
         function theta = stabilize(obj, eigenvals)
             coef_polynom = [1];
             for i = 1 : length(eigenvals)
@@ -137,7 +145,7 @@ classdef InvertedPendulum
         end
         
         function plot_res2(obj)
-            z0 = [obj.x0; obj.x0];
+            z0 = [obj.x0; obj.y0];
             [t, z] = ode45(@obj.nonlinear_and_observer, obj.t_range, z0);
             [t_lin, z_lin] = ode45(@obj.linear_and_observer, obj.t_range, z0);
             
@@ -226,11 +234,11 @@ classdef InvertedPendulum
             obj.plot_res1();
         end
            
-        function task12ab(obj, mu)
+        function task12ab(obj, mu, mu_observer)
 
-            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 0, mu(1));
+            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 0, mu_observer(1));
             A_next = obj.A' - obj.observer_C(1,:)' * theta1;
-            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', 6.5418, mu(2));
+            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', 6.5418, mu_observer(2));
             theta = [theta1; theta2];
             obj.L = theta';
             
@@ -244,15 +252,16 @@ classdef InvertedPendulum
             end
             theta = obj.stabilize(eigenvals);
             obj.u = @(t, z) (theta * z(1:4));
+            obj.u_observer = @(t, z) (theta * z(5:8));
             
             obj.plot_res2();
         end
 
-        function task13(obj, mu)
+        function task13(obj, mu, mu_observer)
 
-            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 0, mu(1));
+            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 0, mu_observer(1));
             A_next = obj.A' - obj.observer_C(1,:)' * theta1;
-            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', 6.5418, mu(2));
+            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', 6.5418, mu_observer(2));
             theta = [theta1; theta2];
             obj.L = theta';
             eigs(obj.A - obj.L * obj.observer_C)
@@ -266,6 +275,7 @@ classdef InvertedPendulum
             end
             theta = obj.stabilize(eigenvals);
             obj.u = @(t, z) (theta * z(5:8));
+            obj.u_observer = @(t, z) (theta * z(5:8));
             
             obj.plot_res2();
 
@@ -328,7 +338,7 @@ classdef InvertedPendulum
 
         end
 
-        function task21b(obj, mu)
+        function task21bc(obj, mu)
             h = 0.1;
             n_steps = (obj.t_range(2) - obj.t_range(1)) / h;
             eigenvals = eigs(obj.A);
@@ -369,14 +379,18 @@ classdef InvertedPendulum
                 obj.B = B_tmp;
 
                 obj.u = @(t, x) theta * x_res(end, :)';
+                
 
                 [t_lin, x_lin] = ode45(@obj.linear, [(i - 1) * h, i * h], x_res(end, :)');
                 [t, x] = ode45(@obj.nonlinear, [(i - 1) * h, i * h], x_res(end, :)');
+                x_lin = real(x_lin);
+                x = real(x);
+                
                 plot(ax1, t_lin, x_lin(:,1), "b", t, x(:, 1), "r");
                 plot(ax2, t_lin, x_lin(:,2), "b", t, x(:, 2), "r");
                 plot(ax4, t_lin, x_lin(:,3), "b", t, x(:, 3), "r");
                 plot(ax5, t_lin, x_lin(:,4), "b", t, x(:, 4), "r");
-                plot(ax3, [(i - 1) * h, i * h], [obj.u(), obj.u()], "g");
+                plot(ax3, [(i - 1) * h, i * h], [real(obj.u()), real(obj.u())], "g");
     
                 x_res = [x_res; x_lin];
                 t_res = [t_res; t_lin];
@@ -454,10 +468,37 @@ classdef InvertedPendulum
 
         end
         
+        function task3(obj, Q, R)
+            [X, K, L] = icare(obj.A, obj.B, diag(Q), R, 0, eye(4), 0);
+            obj.u = @(t, x) (-inv(R) * obj.B' * X * x);
+            [t, x] = ode45(@obj.nonlinear, obj.t_range, obj.x0);
+            [t_lin, x_lin] = ode45(@obj.linear, obj.t_range, obj.x0);
+            
+            figure;
+            tiledlayout(4,1)
+            
+            ax1 = nexttile;
+            plot(ax1, t, x(:,1), '-', t_lin, x_lin(:,1))
+            ylabel(ax1, 'x(t)', 'Interpreter','latex')
+            
+            ax2 = nexttile;
+            plot(ax2, t, x(:,2), '-', t_lin, x_lin(:,2))
+            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
+            
+            ax3 = nexttile;
+            plot(ax3, t, x(:,3), '-', t_lin, x_lin(:,3))
+            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax4 = nexttile;
+            plot(ax4, t, x(:,4), '-', t_lin, x_lin(:,4))
+            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
+        end
+
+        
         function dzdt = linear_and_observer(obj, t, z)
             dx1dt = obj.A*z(1:4) + obj.B * obj.u(t, z);
             y = obj.observer_C * z(1:4);
-            dx2dt = obj.A * z(5:8) + obj.L * (y - obj.observer_C * z(5:8));
+            dx2dt = obj.A * z(5:8) + obj.B * obj.u_observer(t,z) + obj.L * (y - obj.observer_C * z(5:8));
             dzdt = [dx1dt;dx2dt];
         end
 
@@ -477,7 +518,7 @@ classdef InvertedPendulum
             dx1dt(3) = delta_1 / delta;
             dx1dt(4) = delta_2 / delta;
             y = obj.observer_C * z(1:4);
-            dx2dt = obj.A * z(5:8) + obj.L * (y - obj.observer_C * z(5:8));
+            dx2dt = obj.A * z(5:8) + obj.B * obj.u_observer(t,z) + obj.L * (y - obj.observer_C * z(5:8));
             dzdt = [dx1dt;dx2dt];
         end
 
