@@ -768,24 +768,25 @@ classdef InvertedPendulum
             obj.A = A_tmp;
             obj.B = B_tmp;
             
-            A_c = obj.A + obj.B * theta;
+            A_c = Ad + Bd * theta;
             x_plus = Ex;
             E_plus = X;
-
-            x_res = [obj.x0'];
+            rng('shuffle');
+            x_rnd = [normrnd(Ex(1), X(1,1));normrnd(Ex(2), X(2,2));normrnd(Ex(3), X(3,3));normrnd(Ex(4), X(4,4))];
+            x_res = [x_rnd'];
             t_res = [0];  
             u_res = [];
        
             for i = 1 : n_steps
                 
-                obj.u = @(t, z) (theta * x_plus');
+                obj.u = @(t, x) (theta * x_plus);
                 [t, x] = ode45(@obj.nonlinear, [(i - 1) * h, i * h], x_res(end, :)');
                       
                 u_res = [u_res; obj.u()];
                 x_res = [x_res; x];
                 t_res = [t_res; t];
                 
-                w = [normrnd(0, W(1,1)), normrnd(0, W(2,2)), normrnd(0, W(3,3)), normrnd(W(4,4))];
+                w = [normrnd(0, W(1,1)); normrnd(0, W(2,2))];
 
                 y = obj.observer_C * x_res(end,:)' + w;
 

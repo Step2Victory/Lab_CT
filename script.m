@@ -14,4 +14,4 @@ pend = InvertedPendulum(m, M, J, l, K_f, K_s, B_c,  B_p);
 pend.info();
 pend = pend.set_trange([0 10]);
 pend = pend.set_y0([-1 -1 -1 -1]');
-pend.task4([0.1, 0.2, 0.3, 0.4], diag(0.1, 4), diag(0.01, 4), [-1, -1]);
+pend.task4([0; 0; 0; 0], diag([0.04, 0.04, 0.04, 0.04]), diag([0.0004, 0.0004]), [-5, -5]);
