@@ -292,49 +292,71 @@ classdef InvertedPendulum
             end
             
             x_res = [obj.x0'];
+            x_lin_res = [obj.x0'];
             t_res = [0];
+            t_lin_res = [0];
+            u_res = [];
+            u_lin_res = [];
             
-            figure;
-            tiledlayout(2,3);
-            ax1 = nexttile;
-            hold on;
-            ax2 = nexttile;
-            hold on;
-            ax3 = nexttile;
-            hold on;
-            ax4 = nexttile;
-            hold on;
-            ax5 = nexttile;
-            hold on;
+            A_tmp = obj.A;
+            B_tmp = obj.B;
+            obj.A = expm(A_tmp * h);
+            obj.B = integral(@(s) expm(A_tmp * s) * B_tmp, 0, h, 'ArrayValued', true);
+
+            theta = obj.stabilize(exp(eigenvals * h));
+
+
+            obj.A = A_tmp;
+            obj.B = B_tmp;
             
             for i = 1 : n_steps
-                A_tmp = obj.A;
-                B_tmp = obj.B;
-                obj.A = expm(A_tmp * h);
-                %obj.B = expm(A_tmp * h) * B_tmp;
-                obj.B = integral(@(s) expm(A_tmp * s) * B_tmp, 0, h, 'ArrayValued', true);
-                
-                theta = obj.stabilize(exp(eigenvals * h));
-                
-
-                obj.A = A_tmp;
-                obj.B = B_tmp;
 
                 obj.u = @(t, x) theta * x_res(end, :)';
-
-                [t_lin, x_lin] = ode45(@obj.linear, [(i - 1) * h, i * h], x_res(end, :)');
                 [t, x] = ode45(@obj.nonlinear, [(i - 1) * h, i * h], x_res(end, :)');
-                plot(ax1, t_lin, x_lin(:,1), "b", t, x(:, 1), "r");
-                plot(ax2, t_lin, x_lin(:,2), "b", t, x(:, 2), "r");
-                plot(ax4, t_lin, x_lin(:,3), "b", t, x(:, 3), "r");
-                plot(ax5, t_lin, x_lin(:,4), "b", t, x(:, 4), "r");
-                plot(ax3, [(i - 1) * h, i * h], [obj.u(), obj.u()], "g");
-    
-                x_res = [x_res; x_lin];
-                t_res = [t_res; t_lin];
-
+                x = real(x);
+                x_res = [x_res; x];
+                u_res = [u_res; obj.u()];
+                t_res = [t_res; t];
+                
+                obj.u = @(t, x) theta * x_lin_res(end, :)';
+                [t_lin, x_lin] = ode45(@obj.linear, [(i - 1) * h, i * h], x_lin_res(end, :)');
+                x_lin = real(x_lin);
+                x_lin_res = [x_lin_res; x_lin];
+                u_lin_res = [u_lin_res; obj.u()];
+                t_lin_res = [t_lin_res; t_lin];
                 
             end
+            
+            t = t_res;
+            t_lin = t_lin_res;
+            x = x_res;
+            x_lin = x_lin_res;
+            
+            figure;
+            tiledlayout(5,1)
+            
+            ax1 = nexttile;
+            plot(ax1,t, x(:,1), "b", t_lin, x_lin(:,1), "r")
+            ylabel(ax1, 'x(t)', 'Interpreter','latex')
+            
+            ax2 = nexttile;
+            plot(ax2, t, x(:,2), "b", t_lin, x_lin(:,2), "r")
+            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
+            
+            ax3 = nexttile;
+            plot(ax3, t, x(:,3), "b", t_lin, x_lin(:,3), "r")
+            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax4 = nexttile;
+            plot(ax4, t, x(:,4), "b", t_lin, x_lin(:,4), "r")
+            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
+            
+            ax4_1 = nexttile;
+            for i = 1 : n_steps
+                plot(ax4_1, [(i - 1) * h, i * h], [u_res(i), u_res(i)], "b", [(i - 1) * h, i * h], [u_lin_res(i), u_lin_res(i)], "r")
+                hold on;
+            end
+            ylabel(ax4_1,'$u$', 'Interpreter','latex')
 
         end
 
@@ -351,52 +373,71 @@ classdef InvertedPendulum
             end
             
             x_res = [obj.x0'];
+            x_lin_res = [obj.x0'];
             t_res = [0];
+            t_lin_res = [0];
+            u_res = [];
+            u_lin_res = [];
             
-            figure;
-            tiledlayout(2,3);
-            ax1 = nexttile;
-            hold on;
-            ax2 = nexttile;
-            hold on;
-            ax3 = nexttile;
-            hold on;
-            ax4 = nexttile;
-            hold on;
-            ax5 = nexttile;
-            hold on;
+            A_tmp = obj.A;
+            B_tmp = obj.B;
+            obj.A = expm(A_tmp * h);
+            obj.B = integral(@(s) expm(A_tmp * s) * B_tmp, 0, h, 'ArrayValued', true);
+
+            theta = obj.stabilize(exp(eigenvals * h));
+
+
+            obj.A = A_tmp;
+            obj.B = B_tmp;
             
             for i = 1 : n_steps
-                A_tmp = obj.A;
-                B_tmp = obj.B;
-                obj.A = expm(A_tmp * h);
-                obj.B = integral(@(s) expm(A_tmp * s) * B_tmp, 0, h, 'ArrayValued', true);
-                
-                theta = obj.stabilize(exp(eigenvals * h));
-                
-
-                obj.A = A_tmp;
-                obj.B = B_tmp;
 
                 obj.u = @(t, x) theta * x_res(end, :)';
-                
-
-                [t_lin, x_lin] = ode45(@obj.linear, [(i - 1) * h, i * h], x_res(end, :)');
                 [t, x] = ode45(@obj.nonlinear, [(i - 1) * h, i * h], x_res(end, :)');
-                x_lin = real(x_lin);
                 x = real(x);
+                x_res = [x_res; x];
+                u_res = [u_res; obj.u()];
+                t_res = [t_res; t];
                 
-                plot(ax1, t_lin, x_lin(:,1), "b", t, x(:, 1), "r");
-                plot(ax2, t_lin, x_lin(:,2), "b", t, x(:, 2), "r");
-                plot(ax4, t_lin, x_lin(:,3), "b", t, x(:, 3), "r");
-                plot(ax5, t_lin, x_lin(:,4), "b", t, x(:, 4), "r");
-                plot(ax3, [(i - 1) * h, i * h], [real(obj.u()), real(obj.u())], "g");
-    
-                x_res = [x_res; x_lin];
-                t_res = [t_res; t_lin];
-
+                obj.u = @(t, x) theta * x_lin_res(end, :)';
+                [t_lin, x_lin] = ode45(@obj.linear, [(i - 1) * h, i * h], x_lin_res(end, :)');
+                x_lin = real(x_lin);
+                x_lin_res = [x_lin_res; x_lin];
+                u_lin_res = [u_lin_res; obj.u()];
+                t_lin_res = [t_lin_res; t_lin];
                 
             end
+            
+            t = t_res;
+            t_lin = t_lin_res;
+            x = x_res;
+            x_lin = x_lin_res;
+            
+            figure;
+            tiledlayout(5,1)
+            
+            ax1 = nexttile;
+            plot(ax1,t, x(:,1), "b", t_lin, x_lin(:,1), "r")
+            ylabel(ax1, 'x(t)', 'Interpreter','latex')
+            
+            ax2 = nexttile;
+            plot(ax2, t, x(:,2), "b", t_lin, x_lin(:,2), "r")
+            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
+            
+            ax3 = nexttile;
+            plot(ax3, t, x(:,3), "b", t_lin, x_lin(:,3), "r")
+            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax4 = nexttile;
+            plot(ax4, t, x(:,4), "b", t_lin, x_lin(:,4), "r")
+            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
+            
+            ax4_1 = nexttile;
+            for i = 1 : n_steps
+                plot(ax4_1, [(i - 1) * h, i * h], [u_res(i), u_res(i)], "b", [(i - 1) * h, i * h], [u_lin_res(i), u_lin_res(i)], "r")
+                hold on;
+            end
+            ylabel(ax4_1,'$u$', 'Interpreter','latex')
 
         end
 
@@ -449,11 +490,150 @@ classdef InvertedPendulum
                 
                 obj.u = @(t, z) (theta * z_lin_res(end, 1:4)');
                 obj.u_observer = @(t, z) (theta * z_lin_res(end, 5:8)');
-                u_lin_res = [u_res; obj.u()];
-                u_lin_observer_res = [u_observer_res; obj.u_observer()];
+                u_lin_res = [u_lin_res; obj.u()];
+                u_lin_observer_res = [u_lin_observer_res; obj.u_observer()];
                 
            
-                [t_lin, z_lin] = ode45(@obj.linear_and_observer, [(i - 1) * h, i * h], z_res(end, :)');
+                [t_lin, z_lin] = ode45(@obj.linear_and_observer, [(i - 1) * h, i * h], z_lin_res(end, :)');
+                
+                z_res = [z_res; z];
+                t_res = [t_res; t];
+                z_lin_res = [z_lin_res; z_lin];
+                t_lin_res = [t_lin_res; t_lin];
+                
+                
+            end
+            
+            t = t_res;
+            t_lin = t_lin_res;
+            z = z_res;
+            z_lin = z_lin_res;
+            
+            figure;
+            tiledlayout(5,1)
+            
+            ax1 = nexttile;
+            plot(ax1,t, z(:,1), "b", t_lin, z_lin(:,1), "r")
+            ylabel(ax1, 'x(t)', 'Interpreter','latex')
+            
+            ax2 = nexttile;
+            plot(ax2, t, z(:,2), "b", t_lin, z_lin(:,2), "r")
+            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
+            
+            ax3 = nexttile;
+            plot(ax3, t, z(:,3), "b", t_lin, z_lin(:,3), "r")
+            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax4 = nexttile;
+            plot(ax4, t, z(:,4), "b", t_lin, z_lin(:,4), "r")
+            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
+            
+            ax4_1 = nexttile;
+            for i = 1 : n_steps
+                plot(ax4_1, [(i - 1) * h, i * h], [u_res(i), u_res(i)], "b", [(i - 1) * h, i * h], [u_lin_res(i), u_lin_res(i)], "r")
+                hold on;
+            end
+            ylabel(ax4_1,'$u$', 'Interpreter','latex')
+
+            figure;
+            tiledlayout(5,1)
+
+            ax5 = nexttile;
+            plot(ax5, t, z(:,5), "b", t_lin, z_lin(:,5), "r")
+            ylabel(ax5, 'Observed x(t)', 'Interpreter','latex')
+            
+            ax6 = nexttile;
+            plot(ax6, t, z(:,6), "b", t_lin, z_lin(:,6), "r")
+            ylabel(ax6,'Observed $\varphi(t)$', 'Interpreter','latex')
+            
+            ax7 = nexttile;
+            plot(ax7, t, z(:,7), "b", t_lin, z_lin(:,7), "r")
+            ylabel(ax7,'Observed $\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax8 = nexttile;
+            plot(ax8, t, z(:,8), "b", t_lin, z_lin(:,8), "r")
+            ylabel(ax8,'Observed $\dot{\varphi(t)}$', 'Interpreter','latex')
+            
+            ax8_1 = nexttile;
+            for i = 1 : n_steps
+                plot(ax8_1, [(i - 1) * h, i * h], [u_observer_res(i), u_observer_res(i)], "b", [(i - 1) * h, i * h], [u_lin_observer_res(i), u_lin_observer_res(i)], "r")
+                hold on;
+            end
+            ylabel(ax8_1,'Observed $u$', 'Interpreter','latex')
+
+
+            figure;
+            tiledlayout(2,1)
+            ax9 = nexttile;
+            h_lin = zeros(1, length(t_lin));
+            for i = 1 : length(t_lin)
+                h_lin(i) = norm(z_lin(i,1:4) - z_lin(i, 5:8));
+            end
+            plot(ax9, t_lin, h_lin)
+            ylabel(ax9,'Невязка для линейной системы', 'Interpreter','latex')
+            ax10 = nexttile;
+            h = zeros(1, length(t));
+            for i = 1 : length(t)
+                h(i) = norm(z(i,1:4) - z(i, 5:8));
+            end
+            plot(ax10, t, h)
+            ylabel(ax10,'Невязка для нелинейной системы', 'Interpreter','latex')
+        end
+        
+        function task23(obj, mu, mu_observer)            
+            h = 0.1;
+            n_steps = (obj.t_range(2) - obj.t_range(1)) / h;
+            eigenvals = eigs(obj.A);
+            for i = 1 : length(eigenvals)
+                if eigenvals(i) > 0
+                    eigenvals(i) = mu(1);
+                elseif eigenvals(i) == 0
+                    eigenvals(i) = mu(2);
+                end
+            end
+            
+            z_res = [obj.x0', obj.y0'];
+            t_res = [0];
+            z_lin_res = [obj.x0', obj.y0'];
+            t_lin_res = [0];
+            u_res = [];
+            u_observer_res = [];
+            u_lin_res = [];
+            u_lin_observer_res = [];
+            
+            A_tmp = obj.A;
+            B_tmp = obj.B;
+            obj.A = expm(A_tmp * h);
+            obj.B = integral(@(s) expm(A_tmp * s) * B_tmp, 0, h, 'ArrayValued', true);
+
+            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 1, exp(mu_observer(1) * h));
+            A_next = obj.A' - obj.observer_C(1,:)' * theta1;
+            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', exp(6.5418 * h), exp(mu_observer(2) * h));
+            theta = [theta1; theta2];
+            obj.L = theta';
+
+            theta = obj.stabilize(exp(eigenvals * h));
+            
+
+            obj.A = A_tmp;
+            obj.B = B_tmp;  
+            
+            for i = 1 : n_steps
+                
+                obj.u = @(t, z) (theta * z_res(end, 5:8)');
+                obj.u_observer = @(t, z) (theta * z_res(end, 5:8)');
+                u_res = [u_res; obj.u()];
+                u_observer_res = [u_observer_res; obj.u_observer()];
+                
+                [t, z] = ode45(@obj.nonlinear_and_observer, [(i - 1) * h, i * h], z_res(end, :)');
+                
+                obj.u = @(t, z) (theta * z_lin_res(end, 5:8)');
+                obj.u_observer = @(t, z) (theta * z_lin_res(end, 5:8)');
+                u_lin_res = [u_lin_res; obj.u()];
+                u_lin_observer_res = [u_lin_observer_res; obj.u_observer()];
+                
+           
+                [t_lin, z_lin] = ode45(@obj.linear_and_observer, [(i - 1) * h, i * h], z_lin_res(end, :)');
                 
                 z_res = [z_res; z];
                 t_res = [t_res; t];
