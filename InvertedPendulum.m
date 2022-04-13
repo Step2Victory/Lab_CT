@@ -745,6 +745,89 @@ classdef InvertedPendulum
             ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
         end
 
+        function task4(obj, Ex, X, W, mu)
+            
+            h = 0.1;
+            n_steps = (obj.t_range(2) - obj.t_range(1)) / h;
+            eigenvals = eigs(obj.A);
+            for i = 1 : length(eigenvals)
+                if eigenvals(i) > 0
+                    eigenvals(i) = mu(1);
+                elseif eigenvals(i) == 0
+                    eigenvals(i) = mu(2);
+                end
+            end
+            Ad = expm(obj.A * h);
+            Bd = integral(@(s) expm(obj.A * s) * obj.B, 0, h, 'ArrayValued', true);
+            A_tmp = obj.A;
+            B_tmp = obj.B;
+            obj.A = Ad;
+            obj.B = Bd;
+            theta = obj.stabilize(exp(eigenvals * h));
+            
+            obj.A = A_tmp;
+            obj.B = B_tmp;
+            
+            A_c = obj.A + obj.B * theta;
+            x_plus = Ex;
+            E_plus = X;
+
+            x_res = [obj.x0'];
+            t_res = [0];  
+            u_res = [];
+       
+            for i = 1 : n_steps
+                
+                obj.u = @(t, z) (theta * x_plus');
+                [t, x] = ode45(@obj.nonlinear, [(i - 1) * h, i * h], x_res(end, :)');
+                      
+                u_res = [u_res; obj.u()];
+                x_res = [x_res; x];
+                t_res = [t_res; t];
+                
+                w = [normrnd(0, W(1,1)), normrnd(0, W(2,2)), normrnd(0, W(3,3)), normrnd(W(4,4))];
+
+                y = obj.observer_C * x_res(end,:)' + w;
+
+                x_minus = A_c * x_plus;
+                E_minus = obj.A * E_plus * obj.A';
+
+                inv_E_plus = inv(E_minus) + obj.observer_C' * inv(W) * obj.observer_C;
+                E_plus = inv(inv_E_plus);
+                x_plus = x_minus + E_plus * obj.observer_C' * inv(W) * (y - obj.observer_C * x_minus);
+                
+            end
+            
+            x = x_res;
+            t = t_res;
+
+            figure;
+            tiledlayout(5,1)
+            
+            ax1 = nexttile;
+            plot(ax1, t, x(:,1), "b")
+            ylabel(ax1, 'x(t)', 'Interpreter','latex')
+            
+            ax2 = nexttile;
+            plot(ax2, t, x(:,2), "b")
+            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
+            
+            ax3 = nexttile;
+            plot(ax3, t, x(:,3), "b")
+            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
+            
+            ax4 = nexttile;
+            plot(ax4, t, x(:,4), "b")
+            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
+            
+            ax4_1 = nexttile;
+            for i = 1 : n_steps
+                plot(ax4_1, [(i - 1) * h, i * h], [u_res(i), u_res(i)], "b")
+                hold on;
+            end
+            ylabel(ax4_1,'$u$', 'Interpreter','latex')
+            
+        end
         
         function dzdt = linear_and_observer(obj, t, z)
             dx1dt = obj.A*z(1:4) + obj.B * obj.u(t, z);
