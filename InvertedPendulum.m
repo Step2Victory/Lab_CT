@@ -14,15 +14,9 @@ classdef InvertedPendulum
         B
         C
         u
-        L
-        observer_C
-        x0
-        t_range
-     
     end
     properties(Constant = true)
         g = 9.8
-        eps = 10e-3
     end
 
     methods
@@ -35,10 +29,7 @@ classdef InvertedPendulum
             obj.K_s = K_s;
             obj.B_c = B_c;
             obj.B_p = B_p;
-           
-            obj.x0 = [0; -0.6; 0; 0];
-            obj.t_range = [0 2];
-
+            obj.C = control_matrix(obj.A, obj.B);
             A_0 = [m + M, -m * l;
                    -m * l, (J + m * l^2)];
             A_1 = [B_c, 0;
@@ -48,25 +39,13 @@ classdef InvertedPendulum
             obj.A = [zeros(2), eye(2);
                      -inv(A_0) * A_2, -inv(A_0) * (A_1 + [K_f * K_s, 0; 0, 0])];
             obj.B = [0; 0; inv(A_0) * [K_f; 0]];
-            obj.C = obj.control_matrix(obj.A, obj.B);
-
             obj.u = 0;
-
-            obj.L = 0;
-            obj.observer_C = [1, 0, 0, 0; 0, 1, 0, 0]; 
-        end
-        
-        function info(obj)
-            disp('Собственные числа:');
-            disp(eigs(obj.A));
-            disp('Ранг матрицы управляемости:');
-            disp(rank(obj.C));
         end
 
-        function res = Akkerman(obj, A, B, coefs_polynom) 
-            o = zeros(1,length(B)); 
-            o(1, length(B)) = 1; 
-            res = -o * inv(obj.control_matrix(A, B)) * polyvalm(coefs_polynom, A); 
+        function res = Akkerman(obj, coefs_polynom) 
+            o = zeros(1,length(obj.B)); 
+            o(1, length(obj.B)) = 1; 
+            res = -o * inv(obj.C) * polyvalm(coefs_polynom, obj.A); 
         end
 
         function dxdt = nonlinear(obj, t, x)
@@ -93,251 +72,16 @@ classdef InvertedPendulum
         function obj = addu(obj, u)
             obj.u = u;
         end
-
-        function obj = set_trange(obj, new_trange)
-            obj.t_range = new_trange;
-        end
-        
-        function obj = set_x0(obj, new_x0)
-            obj.x0 = new_x0;
-        end
-
-        function theta = stabilize(obj, eigenvals)
-            coef_polynom = [1];
-            for i = 1 : length(eigenvals)
-                coef_polynom = conv(coef_polynom, [1 -eigenvals(i)]);
-            end
-            theta = obj.Akkerman(obj.A, obj.B, coef_polynom);
-        end
-
-        function task11a(obj, mu)
-            eigenvals = eigs(obj.A);
-            for i = 1 : length(eigenvals)
-                if eigenvals(i) > 0
-                    eigenvals(i) = mu;
-                end
-            end
-            theta = obj.stabilize(eigenvals);
-            obj.u = @(t, x) (theta * x);
-            [t, x] = ode45(@obj.nonlinear, obj.t_range, obj.x0);
-            [t_lin, x_lin] = ode45(@obj.linear, obj.t_range, obj.x0);
-            
-            figure;
-            tiledlayout(4,1)
-            
-            ax1 = nexttile;
-            plot(ax1, t, x(:,1), '-', t_lin, x_lin(:,1))
-            ylabel(ax1, 'x(t)', 'Interpreter','latex')
-            
-            ax2 = nexttile;
-            plot(ax2, t, x(:,2), '-', t_lin, x_lin(:,2))
-            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
-            
-            ax3 = nexttile;
-            plot(ax3, t, x(:,3), '-', t_lin, x_lin(:,3))
-            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
-            
-            ax4 = nexttile;
-            plot(ax4, t, x(:,4), '-', t_lin, x_lin(:,4))
-            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
-        end
-
-        function task11b(obj, mu)
-            eigenvals = eigs(obj.A);
-            for i = 1 : length(eigenvals)
-                if eigenvals(i) > 0
-                    eigenvals(i) = mu(1);
-                elseif eigenvals(i) == 0
-                    eigenvals(i) = mu(2);
-                end
-            end
-            theta = obj.stabilize(eigenvals);
-            obj.u = @(t, x) (theta * x);
-            [t, x] = ode45(@obj.nonlinear, obj.t_range, obj.x0);
-            [t_lin, x_lin] = ode45(@obj.linear, obj.t_range, obj.x0);
-            
-            figure;
-            tiledlayout(4,1)
-            
-            ax1 = nexttile;
-            plot(ax1, t, x(:,1), '-', t_lin, x_lin(:,1))
-            ylabel(ax1, 'x(t)', 'Interpreter','latex')
-            
-            ax2 = nexttile;
-            plot(ax2, t, x(:,2), '-', t_lin, x_lin(:,2))
-            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
-            
-            ax3 = nexttile;
-            plot(ax3, t, x(:,3), '-', t_lin, x_lin(:,3))
-            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
-            
-            ax4 = nexttile;
-            plot(ax4, t, x(:,4), '-', t_lin, x_lin(:,4))
-            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
-        end
-        
-        function task11c(obj, mu)
-            eigenvals = eigs(obj.A);
-            for i = 1 : length(eigenvals)
-                if eigenvals(i) > 0
-                    eigenvals(i) = mu(1);
-                elseif eigenvals(i) == 0
-                    eigenvals(i) = mu(2);
-                end
-            end
-            theta = obj.stabilize(eigenvals);
-            obj.u = @(t, x) (theta * x);
-            [t, x] = ode45(@obj.nonlinear, obj.t_range, obj.x0);
-            [t_lin, x_lin] = ode45(@obj.linear, obj.t_range, obj.x0);
-            
-            figure;
-            tiledlayout(4,1)
-            
-            ax1 = nexttile;
-            plot(ax1, t, x(:,1), '-', t_lin, x_lin(:,1))
-            ylabel(ax1, 'x(t)', 'Interpreter','latex')
-            
-            ax2 = nexttile;
-            plot(ax2, t, x(:,2), '-', t_lin, x_lin(:,2))
-            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
-            
-            ax3 = nexttile;
-            plot(ax3, t, x(:,3), '-', t_lin, x_lin(:,3))
-            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
-            
-            ax4 = nexttile;
-            plot(ax4, t, x(:,4), '-', t_lin, x_lin(:,4))
-            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
-        end
-
-        function dzdt = linear_and_observer(obj, t, z)
-            dx1dt = obj.linear(t, z(1:4));
-            y = obj.observer_C * z(1:4);
-            dx2dt = obj.A * z(5:8) + obj.B * obj.u(t,z(1:4)) + obj.L * (y - obj.observer_C * z(5:8));
-            dzdt = [dx1dt;dx2dt];
-        end
-
-        function dzdt = nonlinear_and_observer(obj, t, z)
-            dx1dt = obj.nonlinear(t, z(1:4));
-            y = obj.observer_C * z(1:4);
-            dx2dt = obj.A * z(5:8) + obj.B * obj.u(t,z(1:4)) + obj.L * (y - obj.observer_C * z(5:8));
-            dzdt = [dx1dt;dx2dt];
-        end
-
-        function C = control_matrix(obj, A, b)
-            C = [b];
-            last = b;
-            for i = 2 : length(A)
-                C = [C, A * last];
-                last = A * last;
-            end
-        end
-            
-        function calman(obj, A, b)
-            C = obj.control_matrix(A, b);
-            if rank(C) == length(A)
-                disp('Система полностью управляема')
-            else
-                bin = orth(C);
-                bin = [bin, null(transpose(bin))];
-                P_inv = inv(bin);
-                disp(vpa(P_inv * A * bin, 4));
-                disp(vpa(P_inv * b, 4));
-            end
-        end
-        
-        function theta = shift_eig(obj, A, B, mu1, mu2)
-            [V, D, W] = eig(A);
-            bin = [];
-            for i = 1:length(V)
-                if abs(D(i, i) - mu1) < obj.eps
-                    bin = [bin; W(:,i)'];
-                end
-            end
-            bin = [bin; null(bin)'];
-            P_inv = bin;
-            P = inv(bin);
-            theta = zeros(1,length(B));
-            new_A = P_inv * A * P;
-            new_B = P_inv * B;
-            theta(1,1) = (mu2 - new_A(1,1)) / new_B(1,1);
-            theta = theta * P;
-        end
-
-        function task12a(obj, mu, u)
-
-            theta1 = obj.shift_eig(obj.A', -obj.observer_C(1,:)', 0, mu(1));
-            A_next = obj.A' - obj.observer_C(1,:)' * theta1;
-            theta2 = obj.shift_eig(A_next, obj.observer_C(2,:)', 6.5418, mu(2));
-            theta = [theta1; theta2];
-            obj.L = theta';
-
-            obj.u = u;
-            z0 = [obj.x0; zeros(4,1)];
-            [t, z] = ode45(@obj.nonlinear_and_observer, obj.t_range, z0);
-            [t_lin, z_lin] = ode45(@obj.linear_and_observer, obj.t_range, z0);
-            
-            figure;
-            tiledlayout(4,1)
-            
-            ax1 = nexttile;
-            plot(ax1,t, z(:,1), '-', t_lin, z_lin(:,1))
-            ylabel(ax1, 'x(t)', 'Interpreter','latex')
-            
-            ax2 = nexttile;
-            plot(ax2, t, z(:,2), '-', t_lin, z_lin(:,2))
-            ylabel(ax2,'$\varphi(t)$', 'Interpreter','latex')
-            
-            ax3 = nexttile;
-            plot(ax3, t, z(:,3), '-', t_lin, z_lin(:,3))
-            ylabel(ax3,'$\dot{x(t)}$', 'Interpreter','latex')
-            
-            ax4 = nexttile;
-            plot(ax4, t, z(:,4), '-', t_lin, z_lin(:,4))
-            ylabel(ax4,'$\dot{\varphi(t)}$', 'Interpreter','latex')
-
-            figure;
-            tiledlayout(4,1)
-
-            ax5 = nexttile;
-            plot(ax5, t, z(:,5), '-', t_lin, z_lin(:,5))
-            ylabel(ax5, 'Observed x(t)', 'Interpreter','latex')
-            
-            ax6 = nexttile;
-            plot(ax6, t, z(:,6), '-', t_lin, z_lin(:,6))
-            ylabel(ax6,'Observed $\varphi(t)$', 'Interpreter','latex')
-            
-            ax7 = nexttile;
-            plot(ax7, t, z(:,7), '-', t_lin, z_lin(:,7))
-            ylabel(ax7,'Observed $\dot{x(t)}$', 'Interpreter','latex')
-            
-            ax8 = nexttile;
-            plot(ax8, t, z(:,8), '-', t_lin, z_lin(:,8))
-            ylabel(ax8,'Observed $\dot{\varphi(t)}$', 'Interpreter','latex')
-
-            figure;
-            tiledlayout(2,1)
-            ax9 = nexttile;
-            h_lin = zeros(1, length(t_lin));
-            for i = 1 : length(t_lin)
-                h_lin(i) = norm(z_lin(i,1:4) - obj.observer_C * (z_lin(i, 5:8))');
-            end
-            plot(ax9, t_lin, h_lin)
-            ylabel(ax9,'Невязка для линейной системы', 'Interpreter','latex')
-            ax10 = nexttile;
-            h = zeros(1, length(t));
-            for i = 1 : length(t)
-                h(i) = norm(z(i,1:4) - obj.observer_C * (z(i, 5:8))');
-            end
-            plot(ax10, t, h)
-            ylabel(ax10,'Невязка для нелинейной системы', 'Interpreter','latex')
-
-
+    end
+    
+end
+function C = control_matrix(A, b)
+        C = [b];
+        last = b;
+        for i = 2 : length(A)
+            C = [C, A * last];
+            last = A * last;
         end
     end
-end
-    
-
-
 
 
